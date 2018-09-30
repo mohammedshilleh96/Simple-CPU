@@ -1,0 +1,43 @@
+/******************** CODES *****************************/
+
+		/*** FIRST CODE *****/
+	//CODE SEGMENT
+	Memory [10] = 16'b0000011000110110;
+	Memory [11] = 16'b0100011001000100;
+	Memory [12] = 16'b0110111000100010;
+	Memory [13] = 16'b0001011000110101;
+        //DATA SEGMENT
+    	Memory [21] =16'h0;
+	Memory [22] = 16'h3;
+
+		/*** SECOND CODE *****/
+	//CODE SEGMENT
+	Memory [10] = 16'b0100011000100011;
+	Memory [11] = 16'b0000111000110101;
+	Memory [12] = 16'b0100011001000110;
+	Memory [13] = 16'b0111101000100010;
+  	//DATA SEGMENT
+        Memory [21] =16'h3;
+
+		
+		/*** THIRD CODE *****/
+	//CODE SEGMENT
+	Memory[10] = 16'b0010011000110101;
+	Memory[11] = 16'b0101110000100011;
+	//DATA SEGMENT
+	Memory [21] =16'd22;
+	Memory [22] =16'd3;		
+
+		/*** FOURTH CODE *****/
+	//CODE SEGMENT
+	Memory[10] = 16'b1000001000000001;
+	Memory[11] = 16'b0101111000100001;
+	Memory[21] = 16'b1000000000000001;
+	//DATA SEGMENT
+	Memory [0]  = 16'd4;
+
+
+		/*** DIVISION CODE *****/
+	//CODE SEGMENT
+	Memory [5] = 16'b0100011000101001;
+	Memory [6] = 16'b0100010000100011;

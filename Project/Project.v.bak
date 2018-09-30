@@ -1,0 +1,430 @@
+module Project(clock , PC , IR , MBR , MAR);
+input clock;
+output PC , IR , MBR , MAR;
+
+//******************* OUTPUTS ************************//
+// PC:  CONTAINS THE ADDRESS OF THE NEXT INSTRUCTION
+// IR:  CONTAINS THE INSTRUCTION BEING EXECUTED RIGHT NOW
+// MBR: CONTAINS THE DATA IN WHICH WE TAKE OR GIVE TO MEMORY
+// MAR: CONTAINS THE ADDRESS OF THE MEMORY CELL WE WANT TO WORK WITH
+
+
+//******************* INPUTS ************************//
+// CLOCK: WE NEED IT SINCE THE MEMORY CONSISTS FROM FLIP FLOPS
+
+// RULE: EVERY OUTPUT SHOULD BE DECLARED AS reg
+// RULE: EVERY INPUT MUST BE DECLARED AS WIRE EXCEPT FOR THE CLOCK (IT DOES NOT MAKE SINCE)
+
+// THE WORD IS CONSIDERED 2 BYTES
+
+	reg [3:0]  counter;			// THIS IS FOR THE DIVISION INSTRUCTION
+	reg [15:0] IR , MBR;   		// IT'S 16 BIT IN SIZE SINCE THE MEMORY IS 2 BYTE ADDRESSABLE
+	reg [6:0]  PC;				// IT'S 7  BIT IN SIZE SINCE WE HAVE 128 WORD IN THE MEMORY
+	reg [15:0] R [0:15];        // THE REGISTER FILE
+	reg [15:0] Memory [0:127];  // TWO BYTE ADDRESSABLE MEMORY WITH 128 WORDS
+	reg [2:0]  state;            // TO SWITCH BETWEEN THE INSTRUCTION EXECUTION STEPS
+	reg [6:0]  MAR;		    	// IT'S 7  BIT IN SIZE SINCE WE HAVE 128 WORD IN THE MEMORY
+	reg [3:0]  TOS;              // IT'S 4 BIT IN SIZE SINCE THE STACK SIZE IS 10 WORDS
+	
+// THE PARAMETER RESERVED WORD WORKS LIKE #define IN C LANGUAGE
+// WE USED IT IN ORDER TO HANDLE THE CODE BETTER 
+	parameter load  = 4'b0011;
+	parameter store = 4'b1011;
+	parameter add   = 4'b0111;
+	parameter cmp   = 4'b1101;
+	parameter sl    = 4'b1110;
+	parameter sr    = 4'b1111;
+	parameter div   = 4'b0010;
+	
+// ZERO ADDRESS INSTRUCTIONS
+	parameter pull  = 4'b0001;
+	parameter jump  = 4'b1100;
+	parameter push  = 4'b0000;
+
+
+//ADDRESSING MODES
+	parameter direct    = 3'b000;
+	parameter indirect  = 3'b001;
+	parameter immediate = 3'b010;
+	parameter register  = 3'b011;
+	parameter stack     = 3'b100;
+
+// INSTRUCTION FORMAT IS 4 BIT OPCODE & 12 BIT FOR ADDRESS
+// WE CAN ACCESS 4K WORD MEMORY BUT WE HAVE 128 WORD MEMORY SO WE ARE SAFE
+
+initial
+begin
+	//CODE SEGMENT
+Memory[10] = 16'b1000001000000001;
+Memory[11] = 16'b0101111000100001;
+Memory[21] = 16'b1000000000000001;
+    //DATA SEGMENT
+    Memory [0]  = 16'd4;
+    Memory [21] = 16'd22;
+    Memory [22] = 16'd3;
+	
+    //SET THE PROGRAM COUNTER TO THE START OF THE PROGRAM
+    PC = 10;
+    state = 0;
+end
+
+always @(posedge clock)
+ begin
+	
+     case (state)
+			0: // PREPARE THE PROGRAM COUNTER
+			begin
+				MAR <= PC;
+				state = 1;
+			end
+
+			1: // INSTRUCTION FETCH
+			begin
+			
+				IR <= Memory[MAR];
+				PC <= PC + 1;
+				state = 2;
+			end
+
+			 2: //INSTRUCTION DECODE
+			 begin
+				 case(IR[12:09])
+						load:
+							begin
+								case(IR[15:13])
+										direct:
+											begin
+												MAR [4:0] <= IR [4:0];
+												MAR[6:5] = 2'b00;
+												MBR <= Memory[MAR];
+											end
+
+										indirect:
+											begin
+												MAR[4:0] <= IR [4:0];
+												MAR[6:5] = 2'b00;
+												MBR <= Memory[Memory[MAR]];
+											end
+
+										immediate:
+											begin
+												MBR[15:5] = 11'b00000000000;
+												MBR[4:0] <= IR [4:0];
+											end
+
+										register:
+											begin
+												MBR <=R[IR[4:0]];
+											end
+								endcase
+							end
+	//***************************************************************************************************//
+	//***************************************************************************************************//
+					  store:
+						  begin
+							  case(IR[15:13])
+								  direct:
+									  begin
+										MAR[4:0] <= IR [8:5];
+										MAR[6:5] = 2'b00;
+										MBR[15:0] <= Memory[MAR];
+									  end
+
+								  indirect:
+									  begin
+										MAR[4:0] <= IR [4:0];
+										MAR[6:5] = 2'b00;
+										MBR <= Memory[Memory[MAR]];
+									  end
+
+								  immediate:
+									  begin
+										MBR[15:5] = 11'b00000000000;
+										MBR[4:0] = IR [8:5];
+									  end
+
+								  register:
+									begin
+										MBR[15:0] <=R[IR[4:0]];
+									end
+							endcase
+						end
+						
+	//*******************************************************************************************************//        
+	//*******************************************************************************************************// 
+				 
+					  add :
+						  begin
+							  case(IR[15:13])
+									  direct:
+										  begin
+											  MAR[4:0] <= IR [4:0];
+											  MAR[6:5] = 2'b00;
+											  MBR <= Memory[MAR];
+										  end
+									  
+									  indirect:
+										  begin
+											MAR[4:0] <= IR [4:0];
+											MAR[6:5] = 2'b00;
+											MBR <= Memory[Memory[MAR]];
+										  end
+
+									  immediate:
+										  begin
+											  MBR[15:5] = 11'b00000000000;
+											  MBR[4:0] = IR [4:0];
+										  end
+
+									register:
+										begin
+											MBR[15:0] <=R[IR[4:0]];
+										end 
+							endcase
+						end
+					  
+	//*******************************************************************************************************//				  
+	//*******************************************************************************************************// 
+	            
+					div:
+						begin
+									MBR[15:5] = 11'b00000000000;
+									MBR[4:0] = IR [4:0];
+						end
+			 		 
+	//*******************************************************************************************************//   		 
+	//*******************************************************************************************************//   
+	
+					  push  :
+							begin
+								MBR[15:0] <=R[IR[4:0]];
+							end
+					  
+	//*******************************************************************************************************// 	//*******************************************************************************************************//           
+					  
+					  cmp   :
+						 begin
+							  case(IR[15:13])
+								  direct:
+									  begin
+										  MAR[4:0] <= IR [4:0];
+										  MAR[6:5] = 2'b00;
+										  MBR <= Memory[MAR];
+									  end
+
+								  indirect:
+									  begin
+									   		MAR[4:0] <= IR [4:0];
+											MAR[6:5] = 2'b00;
+											MBR <= Memory[Memory[MAR]];
+									  end
+
+								  immediate:
+									  begin
+										  MBR[15:5] = 11'b00000000000;
+										  MBR[4:0] = IR [4:0];
+									  end
+
+								  register:
+									  begin
+										  MBR <=R[IR[4:0]];
+									  end
+							endcase
+					  end
+					  
+	//*******************************************************************************************************//        
+	//*******************************************************************************************************//   
+				 
+					  sl    :
+						  begin
+							  case(IR[15:13])
+									  direct:
+										  begin
+											  MAR[4:0] <= IR [4:0];
+											  MAR[6:5] = 2'b00;
+											  MBR <= Memory[MAR];
+										  end
+
+									  indirect:
+										  begin
+									   		MAR[4:0] <= IR [4:0];
+											MAR[6:5] = 2'b00;
+											MBR <= Memory[Memory[MAR]];
+										  end
+
+									  immediate:
+										  begin
+											  MBR[15:5] = 11'b00000000000;
+											  MBR[4:0] = IR [4:0];
+										  end
+
+									  register:
+										  begin
+											  MBR[15:0] <=R[IR[4:0]];
+										  end
+								endcase
+							end
+							
+	//*******************************************************************************************************// 
+	//*******************************************************************************************************// 
+					  
+					  sr   :
+						  begin
+							  case(IR[15:13])
+									  direct:
+										  begin
+											  MAR[4:0] <= IR [4:0];
+											  MAR[6:5] = 2'b00;
+											  MBR <= Memory[MAR];
+										  end
+
+									  indirect:
+										  begin
+									   		MAR[4:0] <= IR [4:0];
+											MAR[6:5] = 2'b00;
+											MBR <= Memory[Memory[MAR]];
+										  end
+
+									  immediate:
+										  begin
+											  MBR[15:5] = 11'b00000000000;
+											  MBR[15:0] = IR [4:0];
+										  end
+
+									  register:
+										  begin
+											MBR[15:0] <=R[IR[4:0]];
+										  end
+								 endcase
+							 end
+
+	//*******************************************************************************************************//
+	//*******************************************************************************************************//	 
+					  jump:
+						  begin
+							  case(IR[15:13])
+									  direct:
+										  begin
+											  MAR[4:0] <= IR [4:0];
+											  MAR[6:5] = 2'b00;
+											  MBR <= Memory[MAR];
+										  end
+
+									  indirect:
+										  begin
+											 MBR <= Memory[Memory[IR[4:0]]];
+										  end
+
+									  immediate:
+										  begin
+											  MBR[15:5]<=11'b00000000000;
+											  MBR[4:0] <= IR[4:0];
+										  end
+
+									  register:
+										  begin
+											MBR[15:0]<= R[IR[4:0]];
+										  end
+								 endcase 
+						  end
+					
+				  endcase
+			state = 3;
+		end
+		
+	//*******************************************************************************************************//
+	//*******************************************************************************************************//
+				
+				3: // EXECUTE
+					 begin
+						 case (IR [12:09])
+							load  : 
+								begin
+									R[IR[8:5]] <= MBR;
+									state = 0;
+								end
+										
+							add   : 
+								begin
+									R[IR[8:5]] = R[IR[8:5]] + MBR;
+									state = 0;
+								end
+										
+							store : 
+								begin
+									Memory[IR[4:0]] <= MBR;
+									state = 0;
+								end		
+							cmp   :  
+								 begin
+										if(MBR[15:0] == R[IR[8:5]]) 
+											 R[15][0] = 1; 			// SET THE ZERO FLAG
+										else 
+											R[15][0] = 0;			
+									state = 0;
+								 end
+										
+							sl    : 
+								begin
+									R[IR[8:5]] <= R[IR[8:5]] << MBR; 
+									state = 0;
+								end
+												
+							sr    : 
+								begin
+									R[IR[8:5]] <= R[IR[8:5]] >> MBR; 
+									state = 0;
+								end
+										
+							push  : 
+								begin
+									Memory [TOS + 1] <= MBR;
+									TOS <= TOS + 1;	
+									state = 0;
+								end	
+											  
+							pull  :
+										
+								begin
+									R[IR[4:0]] <= Memory[TOS];
+									TOS <= TOS - 1;	
+									state = 0;
+								end
+											
+							jump  : 
+								begin
+									state = 0;
+									PC <= MBR[6:0];	
+								end
+									  
+									  
+							div :
+								begin
+									R[3] = 0;//Quotient
+									MBR = MBR << 5;
+									R[2] = R[IR[8:5]]; //Dividend
+									
+										for(counter = 6 ; counter > 0 ; counter = counter - 1)
+											begin
+												R[2] = R[2] - MBR;
+													if(R[2][15] == 1'b1)
+														begin// NEGATIVE DIVISOR
+															R[3] = R[3] << 1;
+															R[2] = R[2] + MBR;
+														end
+														
+													else 
+														begin
+															R[3] = R[3] << 1;
+															R[3][0] = 1'b1;
+														end
+												MBR = MBR >> 1;
+											end
+										state = 0;
+									end
+							endcase
+						end
+				endcase
+			end	
+	endmodule
+	
